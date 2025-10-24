@@ -1,0 +1,47 @@
+import basic.osc
+
+scenario top:
+    path: Path                 
+    path.set_map("Town04")
+    path.path_min_driving_lanes(4)
+
+    ego_vehicle: Model3                 # ego car
+    B: Rubicon                        # The other car
+    C: Car
+    
+    event start
+    event end
+    do parallel(duration: 50s):
+        mp1: serial:
+            sp1: parallel(duration: 1s) :
+                ego_vehicle.drive(path) with :
+                    lane(1, at: start)  
+                    speed(60kph)
+                    position(20m, ahead_of: B, at: start) 
+                    #position(50m, ahead_of: C, at: start) 
+            sp2: parallel(duration: 5s) :
+                ego_vehicle.drive(path) with :
+                    change_lane(lane_changes:2, side: right)
+                    speed(60kph)
+                    #position(40m, ahead_of: B, at: start) 
+            sp3: parallel(duration: 5s) :
+                ego_vehicle.drive(path) with :
+                    change_lane(lane_changes:1, side: left)
+                    speed(60kph)
+            sp4: parallel(duration: 5s) :
+                ego_vehicle.drive(path) with :
+                    speed(60kph)
+                    #position(10m, behind: C, at: end)
+        mp2: serial:  
+            sp5: parallel(duration: 16s):  
+                B.drive(path) with:  
+                    #lane(1, at: start)  
+                    speed(60kph)  
+                    # No end position - just drives in lane 1  
+        mp3: serial:  
+            sp6: parallel(duration: 16s):  
+                C.drive(path) with:  
+                    #lane(1, at: start)  
+                    speed(60kph)  
+                    position(1m, behind: ego_vehicle, at: end)  # C behind B  
+                    #position(40m, ahead_of: ego_vehicle, at: end)

@@ -281,6 +281,7 @@ def process_location_modifier(config: OSC2ScenarioConfiguration, modifiers: List
 
     for m in event_start:
         car_name = m.get_actor_name()
+        print(f"Processing absolute positioning for {car_name} car")
         wp = CarlaDataProvider.get_waypoint_by_laneid(m.get_lane_id())
         if wp:
             actor = CarlaDataProvider.get_actor_by_name(car_name)
@@ -291,6 +292,7 @@ def process_location_modifier(config: OSC2ScenarioConfiguration, modifiers: List
             car_config.set_arg({"init_transform": wp.transform})
             msg = (f"{car_name} car init position will be set to {wp.transform.location}, "
                         f"roadid = {wp.road_id}, laneid={wp.lane_id}, s = {wp.s}")
+            print(msg)
             LOG_INFO(msg)
         else:
             raise RuntimeError(f"no valid position to spawn {car_name} car")
@@ -329,7 +331,7 @@ def process_location_modifier(config: OSC2ScenarioConfiguration, modifiers: List
         elif location == "same_as":
             # Same lane
             pass
-        elif location in ('ahead_of', 'behind'):
+        elif location in ('ahead_of', 'behind'): # error cause when lane and position coexist
             distance = modifier.get_distance().gen_physical_value()
 
             if location == "ahead_of":
@@ -337,7 +339,24 @@ def process_location_modifier(config: OSC2ScenarioConfiguration, modifiers: List
             else:
                 wp_lists = init_wp.previous(distance)
             if wp_lists:
-                init_wp = wp_lists[0]
+                #init_wp = wp_lists[0] #<<< BUG line fixed below :
+                target_wp = wp_lists[0]  
+          
+                # NPC가 이미 절대 lane 위치를 가지고 있다면,   
+                # 해당 lane의 waypoint를 찾아서 사용  
+                car_config = config.get_car_config(npc_name)  
+                existing_transform = car_config.get_arg("init_transform")  
+                
+                if existing_transform:  
+                    # 기존 lane 정보 유지  
+                    existing_wp = CarlaDataProvider.get_map().get_waypoint(  
+                        existing_transform.location  
+                    )  
+                    # target_wp와 같은 s 좌표에서 existing_wp의 lane을 찾기  
+                    # (복잡한 로직 필요)  
+                    init_wp = existing_wp  # 간단한 예시  
+                else:  
+                    init_wp = target_wp
         else:
             raise KeyError(f"wrong location = {location}")
 

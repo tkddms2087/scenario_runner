@@ -77,6 +77,9 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
     _lock = threading.Lock()
     _latest_scenario = ""
 
+    ###Extra members for OSC2 by separk
+    _first_spawn_point = None    # type: carla.Transform
+
     @staticmethod
     def set_local_planner(plan):
         """Register a local planner"""
@@ -629,7 +632,10 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
             return None
         else:
             pos = CarlaDataProvider._spawn_points[CarlaDataProvider._spawn_index]  # pylint: disable=unsubscriptable-object
-            #CarlaDataProvider._spawn_index += 1 <<< EDIT : It cause random spawn point ... > not expected output is caused.
+            print("Using spawn point:", CarlaDataProvider._spawn_index, pos)
+            #CarlaDataProvider._spawn_index += 1
+            
+            
             wp = CarlaDataProvider.get_map().get_waypoint(
                 pos.location, project_to_road=True, lane_type=carla.LaneType.Driving
             )
@@ -643,6 +649,7 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
                 return None
             else:
                 print("returning lane:", road_lanes[lane - 1].lane_id)
+                print(road_lanes[lane - 1])
                 return road_lanes[lane - 1]
 
     @staticmethod
@@ -818,6 +825,7 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
         if must_spawn:
             actor = world.spawn_actor(bp, spawn_point, attach_to, attachment_type)
         else:
+            #actor = world.try_spawn_actor(bp, spawn_point, attach_to, attachment_type)
             actor = world.try_spawn_actor(bp, spawn_point, attach_to, attachment_type)
             if actor is None:
                 return None
@@ -845,10 +853,32 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
         blueprint = CarlaDataProvider.create_blueprint(model, rolename, color, actor_category, attribute_filter)
 
         if random_location:
+            #print(model)
+            print("INFO: request_new_actor : Using random location to spawn actor.")
             actor = None
-            while not actor:
-                spawn_point = CarlaDataProvider._rng.choice(CarlaDataProvider._spawn_points)
+            
+            # while not actor:
+            #     spawn_point = CarlaDataProvider._rng.choice(CarlaDataProvider._spawn_points)
+            #     #spawn_point = CarlaDataProvider._first_spawn_point
+            #     actor = CarlaDataProvider._world.try_spawn_actor(blueprint, spawn_point)
+            
+            #EDIT : same as first-generated vehicle spawn point
+            if CarlaDataProvider._first_spawn_point is not None:
+                spawn_point = CarlaDataProvider._first_spawn_point
                 actor = CarlaDataProvider._world.try_spawn_actor(blueprint, spawn_point)
+
+            # ✅ 아직 첫 actor가 없으면 랜덤으로 생성하고, 그걸 저장
+            else:
+                while not actor:
+                    spawn_point = CarlaDataProvider._rng.choice(CarlaDataProvider._spawn_points)
+                    actor = CarlaDataProvider._world.try_spawn_actor(blueprint, spawn_point)
+                CarlaDataProvider._first_spawn_point = spawn_point  # 첫 spawn 위치 저장
+                print("First spawn point set to:", CarlaDataProvider._first_spawn_point)
+            
+            
+            
+            
+
 
         else:
             # For non prop models, slightly lift the actor to avoid collisions with the ground
@@ -860,6 +890,11 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
             _spawn_point.location.y = spawn_point.location.y
             _spawn_point.location.z = spawn_point.location.z + z_offset
             actor = CarlaDataProvider._world.try_spawn_actor(blueprint, _spawn_point)
+            # print("Spawning actor at location:", _spawn_point)
+            # CarlaDataProvider._first_spawn_point = _spawn_point
+            # print("=---------------------------=")
+            # print(CarlaDataProvider._first_spawn_point)
+            # print("=---------------------------=")
 
         if actor is None:
             print("WARNING: Cannot spawn actor {} at position {}".format(model, spawn_point.location))
@@ -909,6 +944,7 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
         actors = []
 
         CarlaDataProvider.generate_spawn_points()
+        print("!!!!!!!!!!!!!!!!!actor_list : ",actor_list)
 
         for actor in actor_list:
             # Get the blueprint
@@ -921,12 +957,17 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
             if not transform:
                 continue
             if actor.random_location:
+                print("We are here?")
                 if CarlaDataProvider._spawn_index >= len(CarlaDataProvider._spawn_points):
                     print("No more spawn points to use")
                     break
                 else:
-                    _spawn_point = CarlaDataProvider._spawn_points[CarlaDataProvider._spawn_index]  # pylint: disable=unsubscriptable-object
-                    #CarlaDataProvider._spawn_index += 1
+                    #_spawn_point = CarlaDataProvider._spawn_points[CarlaDataProvider._spawn_index]  # pylint: disable=unsubscriptable-object
+                    #EDIT : similar as first-generated vehicle spawn point
+                    CarlaDataProvider._first_spawn_point.location.z += 5.0   # avoid collision by offsetting z location
+                    _spawn_point = CarlaDataProvider._first_spawn_point
+                    print("A'spawn point set to:", _spawn_point)
+                    CarlaDataProvider._spawn_index += 1
 
             else:
                 _spawn_point = carla.Transform()
