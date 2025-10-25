@@ -226,7 +226,8 @@ def process_location_modifier(config: OSC2ScenarioConfiguration, modifiers: List
     """
     if not modifiers:
         return
-
+    print("process location modifier--")
+    print("modifiers:", modifiers)
     for modifier in modifiers:
         if isinstance(modifier, ChangeLaneModifier):
             lane_changes = modifier.get_lane_changes()
@@ -308,7 +309,7 @@ def process_location_modifier(config: OSC2ScenarioConfiguration, modifiers: List
     npc_name = None
 
     for modifier in start_group:
-        npc_name = modifier.get_actor_name()
+        npc_name = modifier.get_actor_name() #오류 발생 : 시나리오에 작성된 순서대로 modifier를 해석하는데, 만약 시나리오를 A->B->C 순서로 작성했을 때, A가 B나 C의 위치를 참조할려고 할 경우 B와 C의 위치가 init이 안되었기 때문에 참조가 어려움!
         # location reprents npc at ego_vehicle left, right, same, ahead
         relative_car_name, location = modifier.get_refer_car()
         relative_car_conf = config.get_car_config(relative_car_name)
